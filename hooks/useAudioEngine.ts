@@ -11,6 +11,8 @@ import {
   midiToNoteName,
   type KeyCount,
 } from "@/lib/music-theory";
+import { buildPianoChain, makePianoVoice, MASTER_GAIN_DB, type PianoVoice, type SampleMap } from "@/lib/piano-voice";
+import { recorder, type Recording } from "@/lib/recorder";
 import { getTimeline, resolveStep } from "@/lib/sequencer";
 import {
   BEATS_PER_BAR,
@@ -21,7 +23,6 @@ import {
 import { useMusicStore, type MidiDeviceInfo } from "@/store/useMusicStore";
 
 type Tone = typeof ToneNS;
-type PianoVoice = ToneNS.Sampler | ToneNS.PolySynth;
 
 /* -------------------------------------------------------------------------- */
 /*                                  Settings                                  */
@@ -59,24 +60,6 @@ const SAMPLE_NOTES = [
   "C8",
 ];
 
-/**
- * Piano envelope. A sampled piano already carries its natural decay/sustain curve in the
- * recording, so the Sampler only shapes attack (click-free onset) and release (damper
- * fall-off). The full ADSR is used by the synth fallback when samples can't load.
- */
-export const PIANO_ENVELOPE = {
-  attack: 0.004,
-  decay: 0.9,
-  sustain: 0.18,
-  release: 1.15,
-} as const;
-
-/**
- * Make-up gain on top of the volume slider (dB). The samples peak around −9 dBFS, so there is
- * headroom; the −1 dB limiter at the end of the chain catches any peaks this pushes over.
- */
-const MASTER_GAIN_DB = 8;
-
 /** Humanize ranges: ±5 ms timing, ±10 % velocity. */
 const HUMANIZE_TIME = 0.005;
 const HUMANIZE_VELOCITY = 0.1;
@@ -102,6 +85,8 @@ class AudioEngine {
   private live: PianoVoice | null = null;
   private click: ToneNS.Synth | null = null;
   private master: ToneNS.Volume | null = null;
+  /** Trimmed sample buffers, reused by the offline MP3 render; null = synth fallback. */
+  private samples: SampleMap | null = null;
 
   private repeatId: number | null = null;
   /** Absolute 16th-note position since playback started; -1 = before the first step. */
@@ -125,23 +110,8 @@ class AudioEngine {
       const Tone = await import("tone");
       this.tone = Tone;
 
-      const limiter = new Tone.Limiter(-1).toDestination();
-      this.master = new Tone.Volume(this.volumeToDb(store.volume)).connect(
-        limiter,
-      );
-      const compressor = new Tone.Compressor({
-        threshold: -20,
-        ratio: 2.5,
-        attack: 0.01,
-        release: 0.2,
-      }).connect(this.master);
-      const reverb = new Tone.Reverb({
-        decay: 2.6,
-        preDelay: 0.015,
-        wet: 0.2,
-      }).connect(compressor);
-      // Gentle high-shelf cut tames the brightness of the upper samples.
-      const eq = new Tone.EQ3({ low: 1, mid: 0, high: -2.5 }).connect(reverb);
+      const chain = buildPianoChain(Tone, this.volumeToDb(store.volume));
+      this.master = chain.master;
 
       this.click = new Tone.Synth({
         oscillator: { type: "triangle" },
@@ -162,33 +132,21 @@ class AudioEngine {
             });
           },
         );
-        const urls = Object.fromEntries(
+        this.samples = Object.fromEntries(
           SAMPLE_NOTES.map((n) => [n, trimLeadingSilence(buffers.get(n))]),
         );
-        const makeSampler = () =>
-          new Tone.Sampler({
-            urls,
-            attack: PIANO_ENVELOPE.attack,
-            release: PIANO_ENVELOPE.release,
-            curve: "exponential",
-          }).connect(eq);
-        this.accomp = makeSampler();
-        this.live = makeSampler();
-        await reverb.ready;
+        this.accomp = makePianoVoice(Tone, this.samples, chain.input);
+        this.live = makePianoVoice(Tone, this.samples, chain.input);
+        await chain.ready;
         useMusicStore.getState().setAudioStatus("ready");
       } catch (err) {
         console.warn(
           "[audio] piano samples failed to load — using synth fallback",
           err,
         );
-        const makeSynth = () =>
-          new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "fattriangle", count: 2, spread: 12 },
-            envelope: { ...PIANO_ENVELOPE, attackCurve: "exponential" },
-            volume: -10,
-          }).connect(eq);
-        this.accomp = makeSynth();
-        this.live = makeSynth();
+        this.samples = null;
+        this.accomp = makePianoVoice(Tone, null, chain.input);
+        this.live = makePianoVoice(Tone, null, chain.input);
         useMusicStore.getState().setAudioStatus("error");
       }
 
@@ -340,12 +298,9 @@ class AudioEngine {
       const sound =
         note.soundSteps * stepSec + (note.pedalReleased ? PEDAL_LIFT_DELAY : 0);
       const name = midiToNoteName(note.midi);
-      this.accomp?.triggerAttackRelease(
-        name,
-        sound,
-        Math.max(t, Tone.now()),
-        velocity,
-      );
+      const at = Math.max(t, Tone.now());
+      this.accomp?.triggerAttackRelease(name, sound, at, velocity);
+      recorder.scheduled("accomp", note.midi, velocity, at, at + sound);
 
       const fingerLength = note.lengthSteps * stepSec * 0.92;
       Tone.getDraw().schedule(
@@ -399,6 +354,7 @@ class AudioEngine {
         this.tone.immediate(),
         velocity,
       );
+      recorder.noteOn(midi, velocity, this.tone.immediate());
     }
     keyBus.on(midi, "user", velocity);
   }
@@ -406,6 +362,7 @@ class AudioEngine {
   liveNoteOff(midi: number) {
     this.heldKeys.delete(midi);
     if (this.tone && this.live) {
+      recorder.noteOff(midi, this.tone.immediate());
       if (this.pedalDown) {
         this.sustainedKeys.add(midi);
       } else {
@@ -418,6 +375,7 @@ class AudioEngine {
   /** Sustain pedal (CC64): on release, damp every note that is no longer held by a finger. */
   setPedal(down: boolean) {
     this.pedalDown = down;
+    if (this.tone) recorder.pedal(down, this.tone.immediate());
     if (down || !this.tone || !this.live) return;
     const now = this.tone.immediate();
     for (const midi of this.sustainedKeys) {
@@ -435,6 +393,7 @@ class AudioEngine {
     notes.forEach((midi, i) => {
       const t = now + i * 0.012; // tiny roll so it sounds played, not triggered
       this.live?.triggerAttackRelease(midiToNoteName(midi), 1.6, t, 0.62);
+      recorder.scheduled("live", midi, 0.62, t, t + 1.6);
       Tone.getDraw().schedule(
         () => keyBus.on(midi, lanes[i] ?? "right", 0.62),
         t,
@@ -444,6 +403,22 @@ class AudioEngine {
         t + 0.9,
       );
     });
+  }
+
+  /* ------------------------------- recording ------------------------------ */
+
+  get renderSamples() {
+    return this.samples;
+  }
+
+  /** Call after `unlock()`, so the audio clock exists. */
+  startRecording() {
+    const s = useMusicStore.getState();
+    recorder.start(this.tone!.immediate(), { bpm: s.bpm, timeSignature: s.timeSignature });
+  }
+
+  stopRecording(): Recording {
+    return recorder.stop(this.tone!.immediate());
   }
 }
 
