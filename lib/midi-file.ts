@@ -87,7 +87,7 @@ function noteEvents(notes: RecNote[], channel: number, toTick: (sec: number) => 
   ]);
 }
 
-export function writeMidi(rec: Recording, filter: PartFilter): Uint8Array {
+export function writeMidi(rec: Recording, filter: PartFilter): Uint8Array<ArrayBuffer> {
   const qbpm = quarterBpm(rec);
   const toTick = (sec: number) => Math.max(0, Math.round((sec * qbpm * PPQ) / 60));
   const tempo = Math.round(60_000_000 / qbpm);
