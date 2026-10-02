@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { recordingController } from "@/lib/recording-controller";
 import { audioEngine } from "./useAudioEngine";
 
 /**
@@ -9,7 +10,7 @@ import { audioEngine } from "./useAudioEngine";
  *    W E   T Y U   O P        (black keys)
  *   A S D F G H J K L ;       (white keys, A = C)
  *
- * Z / X shift the octave, Space toggles play/pause.
+ * Z / X shift the octave, Space toggles play/pause, R toggles recording.
  */
 const KEY_TO_OFFSET: Record<string, number> = {
   KeyA: 0, KeyW: 1, KeyS: 2, KeyE: 3, KeyD: 4, KeyF: 5, KeyT: 6, KeyG: 7,
@@ -42,6 +43,11 @@ export function useComputerKeyboard() {
       }
       if (e.code === "KeyZ" && !e.repeat) return setOctave((o) => Math.max(MIN_OCTAVE, o - 1));
       if (e.code === "KeyX" && !e.repeat) return setOctave((o) => Math.min(MAX_OCTAVE, o + 1));
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        if (!e.repeat) void recordingController.toggle();
+        return;
+      }
 
       const offset = KEY_TO_OFFSET[e.code];
       if (offset === undefined || e.repeat || down.has(e.code)) return;
