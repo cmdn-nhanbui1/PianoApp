@@ -1,0 +1,297 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/*  Design tokens — dark "studio console" theme                        */
+/* ------------------------------------------------------------------ */
+:root {
+  --background: oklch(0.145 0.012 265);
+  --foreground: oklch(0.95 0.005 265);
+  --card: oklch(0.185 0.014 265);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.2 0.016 265);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.81 0.15 72);
+  --primary-foreground: oklch(0.2 0.03 60);
+  --secondary: oklch(0.25 0.016 265);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.255 0.016 265);
+  --muted-foreground: oklch(0.7 0.02 265);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.3 0.018 265);
+  --ring: oklch(0.81 0.15 72);
+  --radius: 0.625rem;
+
+  /* Hand lanes */
+  --lh: oklch(0.8 0.13 210); /* cyan */
+  --lh-2: oklch(0.6 0.2 258); /* blue */
+  --rh: oklch(0.83 0.16 75); /* amber */
+  --rh-2: oklch(0.68 0.21 12); /* rose */
+  --user: oklch(0.86 0.18 150); /* live-play glow */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-lh: var(--lh);
+  --color-lh-2: var(--lh-2);
+  --color-rh: var(--rh);
+  --color-rh-2: var(--rh-2);
+  --color-user: var(--user);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-sans-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background:
+      radial-gradient(1200px 500px at 15% -10%, oklch(0.25 0.05 260 / 0.55), transparent 60%),
+      radial-gradient(900px 400px at 100% 0%, oklch(0.25 0.06 30 / 0.35), transparent 60%),
+      var(--background);
+    color: var(--foreground);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Panels                                                             */
+/* ------------------------------------------------------------------ */
+.panel {
+  background: linear-gradient(180deg, oklch(0.2 0.015 265 / 0.9), oklch(0.17 0.013 265 / 0.9));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.04),
+    0 10px 30px -12px oklch(0 0 0 / 0.6);
+}
+
+.lcd {
+  font-family: var(--font-mono);
+  background: oklch(0.12 0.02 200);
+  color: oklch(0.88 0.12 190);
+  text-shadow: 0 0 8px oklch(0.8 0.14 190 / 0.45);
+  border: 1px solid oklch(0.3 0.04 200);
+  box-shadow: inset 0 2px 8px oklch(0 0 0 / 0.6);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Piano keyboard                                                     */
+/*  Key state lives in data-attributes set imperatively (no re-render) */
+/* ------------------------------------------------------------------ */
+.pk-white {
+  background: linear-gradient(180deg, oklch(0.97 0.004 90) 0%, oklch(0.99 0.002 90) 70%, oklch(0.9 0.005 90) 100%);
+  border: 1px solid oklch(0.55 0.01 265);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow:
+    inset 0 -6px 0 oklch(0.86 0.006 90),
+    0 2px 2px oklch(0 0 0 / 0.35);
+  transition:
+    background 90ms linear,
+    box-shadow 90ms linear,
+    transform 60ms ease-out;
+}
+
+.pk-black {
+  background: linear-gradient(180deg, oklch(0.26 0.01 265) 0%, oklch(0.16 0.01 265) 85%, oklch(0.3 0.01 265) 100%);
+  border: 1px solid oklch(0.08 0 0);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow:
+    inset 0 -4px 0 oklch(0.34 0.01 265),
+    inset 1px 0 0 oklch(0.4 0.01 265 / 0.5),
+    0 3px 4px oklch(0 0 0 / 0.5);
+  transition:
+    background 90ms linear,
+    box-shadow 90ms linear,
+    transform 60ms ease-out;
+}
+
+/* Guide (target notes of the current chord) — subtle tint + finger number */
+.pk-white[data-guide="left"] {
+  background: linear-gradient(180deg, oklch(0.95 0.03 215), oklch(0.9 0.06 220));
+}
+.pk-white[data-guide="right"] {
+  background: linear-gradient(180deg, oklch(0.96 0.03 75), oklch(0.91 0.06 60));
+}
+.pk-black[data-guide="left"] {
+  background: linear-gradient(180deg, oklch(0.36 0.06 225), oklch(0.24 0.05 240));
+}
+.pk-black[data-guide="right"] {
+  background: linear-gradient(180deg, oklch(0.4 0.07 60), oklch(0.26 0.05 30));
+}
+
+.pk-finger {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 150ms,
+    transform 150ms;
+}
+[data-guide] > .pk-finger {
+  opacity: 1;
+  transform: none;
+}
+[data-guide="left"] > .pk-finger {
+  background: var(--lh-2);
+}
+[data-guide="right"] > .pk-finger {
+  background: var(--rh-2);
+}
+
+/* Sounding keys: lane gradients + glow */
+.pk-white[data-lh],
+.pk-black[data-lh] {
+  background: linear-gradient(180deg, var(--lh) 0%, var(--lh-2) 100%);
+  box-shadow:
+    0 0 18px 2px oklch(0.75 0.15 225 / 0.75),
+    inset 0 -3px 0 oklch(0.45 0.18 258);
+  transform: translateY(2px);
+}
+.pk-white[data-rh],
+.pk-black[data-rh] {
+  background: linear-gradient(180deg, var(--rh) 0%, var(--rh-2) 100%);
+  box-shadow:
+    0 0 18px 2px oklch(0.78 0.17 40 / 0.75),
+    inset 0 -3px 0 oklch(0.5 0.2 15);
+  transform: translateY(2px);
+}
+.pk-white[data-user],
+.pk-black[data-user] {
+  background: linear-gradient(180deg, oklch(0.97 0.08 150) 0%, var(--user) 60%, oklch(0.65 0.2 160) 100%);
+  box-shadow:
+    0 0 26px 6px oklch(0.85 0.2 150 / 0.8),
+    0 0 4px 1px oklch(1 0 0 / 0.9) inset;
+  transform: translateY(2px);
+}
+/* Both hands on the same key */
+.pk-white[data-lh][data-rh],
+.pk-black[data-lh][data-rh] {
+  background: linear-gradient(180deg, var(--rh) 0%, var(--lh-2) 100%);
+}
+
+/* Ripple on the key surface */
+.pk-ripple {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  width: 180%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  translate: -50% 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, oklch(1 0 0 / 0.75) 0%, oklch(1 0 0 / 0.15) 40%, transparent 65%);
+  animation: pk-ripple 520ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  mix-blend-mode: screen;
+}
+@keyframes pk-ripple {
+  from {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Light "drops" rising from the key into the note-rain lane (Synthesia feel) */
+.pk-spark {
+  position: absolute;
+  bottom: 0;
+  border-radius: 9999px 9999px 3px 3px;
+  pointer-events: none;
+  animation: pk-rise 900ms cubic-bezier(0.15, 0.6, 0.35, 1) forwards;
+  will-change: transform, opacity;
+}
+.pk-spark[data-source="left"] {
+  background: linear-gradient(0deg, var(--lh-2), var(--lh) 60%, transparent);
+  box-shadow: 0 0 12px var(--lh);
+}
+.pk-spark[data-source="right"] {
+  background: linear-gradient(0deg, var(--rh-2), var(--rh) 60%, transparent);
+  box-shadow: 0 0 12px var(--rh);
+}
+.pk-spark[data-source="user"] {
+  background: linear-gradient(0deg, oklch(0.65 0.2 160), var(--user) 60%, transparent);
+  box-shadow: 0 0 14px var(--user);
+}
+@keyframes pk-rise {
+  0% {
+    transform: translateY(0) scaleY(0.3);
+    transform-origin: bottom;
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-90px) scaleY(1);
+    opacity: 0;
+  }
+}
+
+/* MIDI activity LED */
+.led-flash {
+  animation: led-flash 450ms ease-out forwards;
+}
+@keyframes led-flash {
+  from {
+    background: var(--user);
+    box-shadow: 0 0 10px var(--user);
+  }
+  to {
+    background: var(--muted);
+    box-shadow: none;
+  }
+}
+
+/* Timeline cursor */
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.cursor-blink {
+  animation: cursor-blink 1s steps(2, jump-none) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-ripple,
+  .pk-spark {
+    display: none;
+  }
+  .cursor-blink {
+    animation: none;
+  }
+}
+
+/* Thin scrollbars for horizontal lanes */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
