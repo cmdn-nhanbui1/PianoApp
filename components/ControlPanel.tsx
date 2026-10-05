@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Loader2, Minus, Pause, Piano, Play, Plus, Square, Timer, Usb, Volume1, Volume2, VolumeX } from "lucide-react";
+import { RecorderPanel } from "@/components/RecorderPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -267,6 +268,7 @@ export function ControlPanel() {
       </div>
 
       <Transport />
+      <RecorderPanel />
       <Tempo />
       <TimeSignaturePicker />
       <VolumeControl />

@@ -6,6 +6,7 @@ import { ControlPanel } from "@/components/ControlPanel";
 import { GuidePanel } from "@/components/GuidePanel";
 import { Keyboard } from "@/components/Keyboard";
 import { ProgressionBuilder } from "@/components/ProgressionBuilder";
+import { RecordingResult } from "@/components/RecordingResult";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useComputerKeyboard } from "@/hooks/useComputerKeyboard";
 import { KEYBOARD_SIZES, midiToNoteName } from "@/lib/music-theory";
@@ -26,6 +27,7 @@ export default function StudioPage() {
     <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-4 py-4 sm:gap-4 sm:px-6">
       {/* 1 — Top control bar */}
       <ControlPanel />
+      <RecordingResult />
 
       {/* 2 — Style & progression */}
       <ProgressionBuilder />

@@ -24,6 +24,18 @@ export interface MidiDeviceInfo {
 
 export type AudioStatus = "idle" | "loading" | "ready" | "error";
 export type MidiStatus = "unsupported" | "pending" | "denied" | "ready";
+export type RecFormat = "midi" | "mp3";
+export type RecPhase = "render" | "encode";
+
+export interface RecInfo {
+  duration: number;
+  liveNotes: number;
+  accompNotes: number;
+  /** Rendered with the synth fallback (samples failed to load). */
+  synth: boolean;
+  /** File name without extension, e.g. "piano-2026-10-02-1430". */
+  fileStem: string;
+}
 
 interface TransportState {
   isPlaying: boolean;
@@ -69,6 +81,22 @@ interface DeviceState {
   detectedKeyCount: KeyCount;
 }
 
+/** Recording — driven by lib/recording-controller.ts; the Recording itself lives there, not here. */
+interface RecordingState {
+  recState: "idle" | "recording" | "ready";
+  /** performance.now() at Rec press, for the timer. */
+  recStartedAt: number;
+  recFormat: RecFormat;
+  recLive: boolean;
+  recAccomp: boolean;
+  recInfo: RecInfo | null;
+  /** exportKey → object URL of a finished export. */
+  recExports: Record<string, string>;
+  /** Export currently being built. */
+  recJob: { key: string; phase: RecPhase } | null;
+  recError: { key: string; message: string } | null;
+}
+
 interface Actions {
   /** Written by the audio engine only — UI calls `audioEngine.play()/pause()/stop()`. */
   setPlaying: (playing: boolean) => void;
@@ -100,9 +128,14 @@ interface Actions {
   pingMidi: () => void;
   setKeyboardSize: (size: "auto" | KeyCount) => void;
   setDetectedKeyCount: (count: KeyCount) => void;
+
+  setRec: (p: Partial<RecordingState>) => void;
+  setRecFormat: (f: RecFormat) => void;
+  setRecLive: (on: boolean) => void;
+  setRecAccomp: (on: boolean) => void;
 }
 
-export type MusicState = TransportState & ArrangementState & PlayheadState & DeviceState & Actions;
+export type MusicState = TransportState & ArrangementState & PlayheadState & DeviceState & RecordingState & Actions;
 
 let slotCounter = 0;
 const newSlot = (symbol: string, length: SlotLength = "bar"): ChordSlot => ({
@@ -142,6 +175,16 @@ export const useMusicStore = create<MusicState>()(
         midiActivity: 0,
         keyboardSize: "auto",
         detectedKeyCount: DEFAULT_KEY_COUNT,
+        // recording
+        recState: "idle",
+        recStartedAt: 0,
+        recFormat: "mp3",
+        recLive: true,
+        recAccomp: true,
+        recInfo: null,
+        recExports: {},
+        recJob: null,
+        recError: null,
 
         setPlaying: (isPlaying) => set({ isPlaying }),
         resetPlayhead: () => set({ currentSlot: 0, currentStep: -1, currentBeat: -1 }),
@@ -224,6 +267,11 @@ export const useMusicStore = create<MusicState>()(
         pingMidi: () => set({ midiActivity: performance.now() }),
         setKeyboardSize: (keyboardSize) => set({ keyboardSize }),
         setDetectedKeyCount: (detectedKeyCount) => set({ detectedKeyCount }),
+
+        setRec: (p) => set(p),
+        setRecFormat: (recFormat) => set({ recFormat }),
+        setRecLive: (recLive) => set({ recLive }),
+        setRecAccomp: (recAccomp) => set({ recAccomp }),
       }),
       {
         name: "piano-studio-pro",
@@ -251,6 +299,9 @@ export const useMusicStore = create<MusicState>()(
           progression: s.progression,
           selectedMidiId: s.selectedMidiId,
           keyboardSize: s.keyboardSize,
+          recFormat: s.recFormat,
+          recLive: s.recLive,
+          recAccomp: s.recAccomp,
         }),
       },
     ),
